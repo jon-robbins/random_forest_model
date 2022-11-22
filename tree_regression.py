@@ -8,6 +8,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score, roc_curve, accuracy_score, roc_auc_score
 from sklearn.tree import plot_tree
+from sklearn.neighbors import KNeighborsClassifier as KNN
+from sklearn.tree import DecisionTreeClassifier
 
 
 
@@ -95,12 +97,11 @@ y_pred = dt.predict(X_test)
 
 # Print ROC_AUC score
 
-auc = roc_auc_score(y_test, y_pred)
-print("Test set AUC of dt: {:.3f}".format(auc))
+auc_dt = roc_auc_score(y_test, y_pred)
+print("Test set AUC of dt: {:.3f}".format(auc_dt))
 
 #%%
-from sklearn.neighbors import KNeighborsClassifier as KNN
-from sklearn.tree import DecisionTreeClassifier
+
 
 # Set seed for reproducibility
 SEED=3
@@ -129,7 +130,7 @@ for clf_name, clf in classifiers:
     # Predict y_pred
     y_pred = clf.predict(X_test)
      
-    # Calculate mse
+    # Calculate accuracy
     accuracy = accuracy_score(y_test, y_pred) 
     
     # Evaluate clf's accuracy on the test set
@@ -176,7 +177,7 @@ y_pred = bc.predict(X_test)
 # Evaluate acc_test
 acc_test = accuracy_score(y_test, y_pred)
 print('Test set accuracy of bc: {:.3f}'.format(acc_test)) 
-#Get 1 more percent with bagging. 
+#Jump from 85.5% to 92.8% with bagging
 #%%
 # Instantiate rf
 rf = RandomForestClassifier(max_depth=9, random_state=0)
@@ -190,7 +191,7 @@ y_pred = rf.predict(X_test)
 # Evaluate acc_test
 acc_test = accuracy_score(y_test, y_pred)
 print('Test set accuracy of rf: {:.3f}'.format(acc_test)) 
-#RF gets 93%
+#RF gets 93.4%
 
 #%%
 
@@ -199,8 +200,8 @@ y_pred = rf.predict(X_test)
  
 # Print ROC_AUC score
 
-bl_auc = roc_auc_score(y_test, y_pred)
-print("Test set AUC of rf: {:.3f}".format(bl_auc))
+auc_rf = roc_auc_score(y_test, y_pred)
+print("Test set AUC of rf: {:.3f}".format(auc_rf))
 #up from 0.741 to 0.801
 #%%
 #Let's rank feature importance now.
@@ -216,7 +217,7 @@ importances_sorted.plot(kind='barh', color='lightgreen')
 plt.title('Features Importances')
 plt.show()
 
-#DayMins and MonthlyCharge are the most important feature, plus the daily_call_length feature I added. 
+#DayMins and MonthlyCharge are the most important feature, plus the daily_call_length feature I added. But that might be because daily_call_length is a function of DayMins
 #%%
 #Now let's try using AdaBoost to see if we can improve RMSE
 # Import AdaBoostClassifier
@@ -232,8 +233,8 @@ y_pred_ada = ada_reg.predict(X_test)
 
 #Print ROC_AUC score
 
-ada_auc = roc_auc_score(y_test, y_pred_ada)
-print("Test set AUC of ada: {:.3f}".format(ada_auc))
+auc_ada = roc_auc_score(y_test, y_pred_ada)
+print("Test set AUC of ada: {:.3f}".format(auc_ada))
 
 #Ada brings it from 0.801 to 0.884, nice.
 #%%
@@ -250,8 +251,8 @@ y_pred_xg = xgb_model.predict(X_test)
 
 #Print ROC_AUC score
 
-xgb_auc = roc_auc_score(y_test, y_pred)
-print("Test set AUC of xgb: {:.3f}".format(xgb_auc))
+auc_xgb = roc_auc_score(y_test, y_pred)
+print("Test set AUC of xgb: {:.3f}".format(auc_xgb))
 #XGB worse than ada (.801 to 0.885)
 #%%
 #Hyperparameter tuning
