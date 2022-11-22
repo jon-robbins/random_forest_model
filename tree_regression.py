@@ -288,6 +288,6 @@ y_pred = rf_12.predict(X_test)
  
 # Evaluate acc_test
 acc_test = accuracy_score(y_test, y_pred)
-print('Test set accuracy of rf with max_depth_7: {:.4f}'.format(acc_test)) 
+print('Test set accuracy of rf with max_depth_12: {:.4f}'.format(acc_test)) 
 #Ideal depth is at 12, gives us 93.5% accuracy
 
