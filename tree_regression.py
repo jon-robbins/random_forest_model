@@ -46,6 +46,7 @@ for i in range(len(cols)):
     plt.figure(i)
     sns.kdeplot(np.array(df.iloc[i]), bw=0.5).set(title=cols[i])
 
+
 #%%
 
 #Split features and target into X and y
@@ -57,7 +58,7 @@ y_labels = np.array(['Not churn', 'Churn'])
 #Create tet and train split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1, stratify=y)
 
-# Train the model using DecisionTree classifier
+# Create a model using DecisionTree classifier
 clf_tree = DecisionTreeClassifier(max_depth=4, random_state=1)
 clf_tree.fit(X_train, y_train)
 
@@ -73,38 +74,23 @@ print("Test set accuracy: {:.3f}".format(acc))
 #%%
 #Plot the tree
 plt.figure(figsize=(25,10))
+
+#This should work but it doesn't, wtf? 
+#class_names = ['Not_churned', 'Churned']
 plot_tree = plot_tree(clf_tree,
                       feature_names=features.columns, 
-                      class_names=True, 
+#                     class_names=class_names, 
+                      class_names=True,
                       filled=True, 
                       rounded=True, 
                       fontsize=14)
 
-#%%
-#Make decision tree regressor
-from sklearn.tree import DecisionTreeRegressor
- 
-# Instantiate dt
-dt = DecisionTreeRegressor(max_depth=8,
-             min_samples_leaf=0.13,
-            random_state=3)
- 
-# Fit dt to the training set
-dt.fit(X_train, y_train)
- 
-# Compute y_pred
-y_pred = dt.predict(X_test)
-
-# Print ROC_AUC score
-
-auc_dt = roc_auc_score(y_test, y_pred)
-print("Test set AUC of dt: {:.3f}".format(auc_dt))
 
 #%%
 
 
 # Set seed for reproducibility
-SEED=3
+SEED=2345
  
 # Instantiate knn
 knn = KNN(n_neighbors=5)
@@ -142,7 +128,7 @@ for clf_name, clf in classifiers:
 from sklearn.ensemble import VotingClassifier
  
 # Instantiate a VotingClassifier vc
-vc = VotingClassifier(estimators=classifiers)     
+vc = VotingClassifier(estimators=classifiers, voting='soft')     
  
 # Fit vc to the training set
 vc.fit(X_train, y_train)   
@@ -166,7 +152,7 @@ from sklearn.ensemble import BaggingClassifier
 dt = DecisionTreeClassifier(random_state=1)
  
 # Instantiate bc
-bc = BaggingClassifier(base_estimator=dt, n_estimators=50, random_state=1)
+bc = BaggingClassifier(base_estimator=dt, n_estimators=500, random_state=1)
 
 # Fit bc to the training set
 bc.fit(X_train, y_train)
@@ -179,8 +165,26 @@ acc_test = accuracy_score(y_test, y_pred)
 print('Test set accuracy of bc: {:.3f}'.format(acc_test)) 
 #Jump from 85.5% to 92.8% with bagging
 #%%
+#pass KNN into bagging
+# Instantiate knn
+#already done
+ 
+# Instantiate bc
+bc = BaggingClassifier(base_estimator=knn, n_estimators=100, random_state=1)
+
+# Fit bc to the training set
+bc.fit(X_train, y_train)
+ 
+# Predict test set labels
+y_pred = bc.predict(X_test)
+ 
+# Evaluate acc_test
+acc_test = accuracy_score(y_test, y_pred)
+print('Test set accuracy of knn with bagging: {:.3f}'.format(acc_test))
+#This gives us a slightly better model than using knn by itself, but still nowhere near as good as using random forest by itself. 
+#%%
 # Instantiate rf
-rf = RandomForestClassifier(max_depth=9, random_state=0)
+rf = RandomForestClassifier(max_depth=12, random_state=0, n_estimators=500)
              
 # Fit rf to the training set    
 rf.fit(X_train, y_train) 
@@ -284,5 +288,9 @@ print('Test set accuracy of rf with max_depth_12: {:.4f}'.format(acc_test))
 #Optimal depth is at 12, gives us 93.5% accuracy
 #But, 6 gives 92.5% accuracy. So 6 is more efficient
 #%%
+#Final model
 
-
+def predictor_model(obs):
+    #input must be array of 1,15
+    obs_reshaped = np.array(obs).reshape(1,15)
+    return obs_reshaped
