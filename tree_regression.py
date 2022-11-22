@@ -212,8 +212,8 @@ print('Test set RMSE of rf: {:.2f}'.format(rmse_test))
 #%%
 #Let's rank feature importance now.
 # Create a pd.Series of features importances
-importances = pd.Series(data=rf.feature_importances_,
-                        index= features.columns)
+importances = pd.Series(data = rf.feature_importances_,
+                        index = features.columns)
  
 # Sort importances
 importances_sorted = importances.sort_values()
@@ -276,7 +276,6 @@ y_pred = rf_2.predict(X_test)
 acc_test = accuracy_score(y_test, y_pred)
 print('Test set accuracy of rf with max_depth_2: {:.4f}'.format(acc_test)) 
 
-
 # Instantiate rf
 rf_12 = RandomForestClassifier(max_depth=12, random_state=0)
              
@@ -289,5 +288,8 @@ y_pred = rf_12.predict(X_test)
 # Evaluate acc_test
 acc_test = accuracy_score(y_test, y_pred)
 print('Test set accuracy of rf with max_depth_12: {:.4f}'.format(acc_test)) 
-#Ideal depth is at 12, gives us 93.5% accuracy
+#Optimal depth is at 12, gives us 93.5% accuracy
+#But, 6 gives 92.5% accuracy. So 6 is more efficient
+#%%
+
 
