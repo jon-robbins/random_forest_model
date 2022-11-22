@@ -4,10 +4,9 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import accuracy_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, roc_curve, accuracy_score, roc_auc_score
 from sklearn.tree import plot_tree
 
 
@@ -68,7 +67,7 @@ y_pred = clf_tree.predict(X_test)
  
 # Compute test set accuracy  
 acc = accuracy_score(y_test, y_pred)
-print("Test set accuracy: {:.2f}".format(acc))
+print("Test set accuracy: {:.3f}".format(acc))
 #%%
 #Plot the tree
 plt.figure(figsize=(25,10))
@@ -90,21 +89,15 @@ dt = DecisionTreeRegressor(max_depth=8,
  
 # Fit dt to the training set
 dt.fit(X_train, y_train)
-
-#
-# 2. Evaluate your model
-#
-# Import mean_squared_error from sklearn.metrics as MSE
-from sklearn.metrics import mean_squared_error as MSE
  
 # Compute y_pred
 y_pred = dt.predict(X_test)
- 
-# Compute mse_dt
-mse_dt = MSE(y_test, y_pred)
- 
-# Print rmse_dt
-print("Test set MSE of dt: {:.2f}".format(mse_dt))
+
+# Print ROC_AUC score
+
+auc = roc_auc_score(y_test, y_pred)
+print("Test set AUC of dt: {:.3f}".format(auc))
+
 #%%
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.tree import DecisionTreeClassifier
@@ -182,7 +175,7 @@ y_pred = bc.predict(X_test)
  
 # Evaluate acc_test
 acc_test = accuracy_score(y_test, y_pred)
-print('Test set accuracy of bc: {:.2f}'.format(acc_test)) 
+print('Test set accuracy of bc: {:.3f}'.format(acc_test)) 
 #Get 1 more percent with bagging. 
 #%%
 # Instantiate rf
@@ -196,19 +189,19 @@ y_pred = rf.predict(X_test)
  
 # Evaluate acc_test
 acc_test = accuracy_score(y_test, y_pred)
-print('Test set accuracy of rf: {:.2f}'.format(acc_test)) 
+print('Test set accuracy of rf: {:.3f}'.format(acc_test)) 
 #RF gets 93%
+
 #%%
 
 # Predict the test set labels
 y_pred = rf.predict(X_test)
  
-# Evaluate the test set RMSE
-rmse_test = MSE(y_test, y_pred) ** 0.5
- 
-# Print rmse_test
-print('Test set RMSE of rf: {:.2f}'.format(rmse_test))
-#RMSE is 0.26 up to this point. Not great.
+# Print ROC_AUC score
+
+bl_auc = roc_auc_score(y_test, y_pred)
+print("Test set AUC of rf: {:.3f}".format(bl_auc))
+#up from 0.741 to 0.801
 #%%
 #Let's rank feature importance now.
 # Create a pd.Series of features importances
@@ -237,12 +230,12 @@ ada_reg.fit(X_train, y_train)
 # Compute the probabilities of obtaining the positive class
 y_pred_ada = ada_reg.predict(X_test)
 
-# Evaluate the test set RMSE
-rmse_test = MSE(y_test, y_pred_ada) ** 0.5
- 
-# Print rmse_test
-print('Test set RMSE of ada: {:.2f}'.format(rmse_test))
-#lol it's worse than with bagging, 0.29 compared to 0.26
+#Print ROC_AUC score
+
+ada_auc = roc_auc_score(y_test, y_pred_ada)
+print("Test set AUC of ada: {:.3f}".format(ada_auc))
+
+#Ada brings it from 0.801 to 0.884, nice.
 #%%
 #Now let's try XGBoost
 import xgboost as xgb
@@ -255,12 +248,11 @@ xgb_model.fit(X_train, y_train)
 # Compute the probabilities of obtaining the positive class
 y_pred_xg = xgb_model.predict(X_test)
 
-# Evaluate the test set RMSE
-rmse_test = MSE(y_test, y_pred_xg) ** 0.5
- 
-# Print rmse_test
-print('Test set RMSE of xgboost: {:.2f}'.format(rmse_test))
-#still no better than with just rf, 0.26
+#Print ROC_AUC score
+
+xgb_auc = roc_auc_score(y_test, y_pred)
+print("Test set AUC of xgb: {:.3f}".format(xgb_auc))
+#XGB worse than ada (.801 to 0.885)
 #%%
 #Hyperparameter tuning
 # Instantiate rf
