@@ -6,6 +6,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import accuracy_score
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score
+from sklearn.tree import plot_tree
 
 
 
@@ -30,6 +33,9 @@ df.describe()
 
 # If the have a high monthly charge, and they have made a lot of calls, then I assume that they would have called to lower the monthly charge. Let's create an interaction term between these two
 df['cs_calls_bill'] = df['CustServCalls'] * df['MonthlyCharge']
+
+#daily call length. If they have longer calls per day, they may be business customers who have different needs than regular customers.
+df['daily_call_length'] = (df['DayMins'] / 30.417) * df['DayCalls']
 #%%
 #now let's visualize all of our columns and check the distributions
 sns.set_style('whitegrid')
@@ -41,47 +47,37 @@ for i in range(len(cols)):
 
 #%%
 
-# define target
-
-# Labels are the values we want to predict
-labels = np.array(df['Churn'])
-# Remove the labels from the featuresaxis 1 refers to the columns
-features = df.drop('Churn', axis = 1)
-# Saving feature names for later use
-feature_list = list(features.columns)
-# Convert to numpy array
-features = np.array(features)
-
-# Using Skicit-learn to split data into training and testing sets
-# Split the data into training and testing sets
-
-train_features, test_features, train_labels, test_labels = train_test_split(features, labels, test_size = 0.25, random_state = 42)
-
-print('Training Features Shape:', train_features.shape)
-print('Training Labels Shape:', train_labels.shape)
-print('Testing Features Shape:', test_features.shape)
-print('Testing Labels Shape:', test_labels.shape)
+#Split features and target into X and y
+features = df.drop(labels='Churn', axis=1)
+X = np.array(features)
+y = np.array(df['Churn'])
+y_labels = np.array(['Not churn', 'Churn'])
 #%%
-# Instantiate model with 1000 decision trees
-rf = RandomForestRegressor(n_estimators = 1000, random_state = 42)
-# Train the model on training data
-rf.fit(train_features, train_labels)
-#%%
-# Import DecisionTreeClassifier
+#Create tet and train split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1, stratify=y)
 
-# Instantiate rf
-rf = RandomForestClassifier(max_depth=9, random_state=0)
-             
-# Fit rf to the training set    
-rf.fit(train_features, train_labels) 
- 
+# Train the model using DecisionTree classifier
+clf_tree = DecisionTreeClassifier(max_depth=4, random_state=1)
+clf_tree.fit(X_train, y_train)
+
 # Predict test set labels
-y_pred = rf.predict(test_features)
+y_pred = clf_tree.predict(X_test)
+#%%
+# Predict test set labels
+y_pred = clf_tree.predict(X_test)
  
-# Evaluate acc_test
-acc_test = accuracy_score(test_features, test_labels)
-print('Test set accuracy of rf: {:.2f}'.format(acc_test)) 
-
+# Compute test set accuracy  
+acc = accuracy_score(y_test, y_pred)
+print("Test set accuracy: {:.2f}".format(acc))
+#%%
+#Plot the tree
+plt.figure(figsize=(25,10))
+plot_tree = plot_tree(clf_tree,
+                      feature_names=features.columns, 
+                      class_names=True, 
+                      filled=True, 
+                      rounded=True, 
+                      fontsize=14)
 
 
 
