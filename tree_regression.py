@@ -36,7 +36,7 @@ df.describe()
 df['cs_calls_bill'] = df['CustServCalls'] * df['MonthlyCharge']
 
 #daily call length. If they have longer calls per day, they may be business customers who have different needs than regular customers.
-df['daily_call_length'] = (df['DayMins'] / 30.417) * df['DayCalls']
+#df['daily_call_length'] = (df['DayMins'] / 30.417) * df['DayCalls']
 #%%
 #now let's visualize all of our columns and check the distributions
 sns.set_style('whitegrid')
@@ -69,8 +69,8 @@ y_pred = clf_tree.predict(X_test)
 y_pred = clf_tree.predict(X_test)
  
 # Compute test set accuracy  
-acc = accuracy_score(y_test, y_pred)
-print("Test set accuracy: {:.3f}".format(acc))
+acc_baseline = accuracy_score(y_test, y_pred)
+print("Test set baseline accuracy: {:.3f}".format(acc_baseline))
 #%%
 #Plot the tree
 plt.figure(figsize=(25,10))
@@ -117,10 +117,10 @@ for clf_name, clf in classifiers:
     y_pred = clf.predict(X_test)
      
     # Calculate accuracy
-    accuracy = accuracy_score(y_test, y_pred) 
+    acc_clf = accuracy_score(y_test, y_pred) 
     
     # Evaluate clf's accuracy on the test set
-    print('{:s} : {:.3f}'.format(clf_name, accuracy))
+    print('{:s} : {:.3f}'.format(clf_name, acc_clf))
 #%%
 #Now let's check if we can get a higher accuracy rating with ensembling
 
@@ -137,9 +137,9 @@ vc.fit(X_train, y_train)
 y_pred = vc.predict(X_test)
  
 # Calculate accuracy score
-accuracy = accuracy_score(y_test, y_pred)
-print('Voting Classifier: {:.3f}'.format(accuracy))
-#Nope, doesn't seem like this will give us a better result. 
+acc_voting = accuracy_score(y_test, y_pred)
+print('Voting Classifier: {:.3f}'.format(acc_voting))
+#Nope, doesn't seem like this will give us a better result. .858, so slightly better than knn but not enough to make a difference. 
 #%%
 #Bagging
 # Import DecisionTreeClassifier
@@ -152,7 +152,7 @@ from sklearn.ensemble import BaggingClassifier
 dt = DecisionTreeClassifier(random_state=1)
  
 # Instantiate bc
-bc = BaggingClassifier(base_estimator=dt, n_estimators=500, random_state=1)
+bc = BaggingClassifier(base_estimator=dt, n_estimators=300, random_state=1)
 
 # Fit bc to the training set
 bc.fit(X_train, y_train)
@@ -161,8 +161,8 @@ bc.fit(X_train, y_train)
 y_pred = bc.predict(X_test)
  
 # Evaluate acc_test
-acc_test = accuracy_score(y_test, y_pred)
-print('Test set accuracy of bc: {:.3f}'.format(acc_test)) 
+acc_dt_with_bagging = accuracy_score(y_test, y_pred)
+print('Test set accuracy of bc: {:.3f}'.format(acc_dt_with_bagging)) 
 #Jump from 85.5% to 92.8% with bagging
 #%%
 #pass KNN into bagging
@@ -179,8 +179,8 @@ bc.fit(X_train, y_train)
 y_pred = bc.predict(X_test)
  
 # Evaluate acc_test
-acc_test = accuracy_score(y_test, y_pred)
-print('Test set accuracy of knn with bagging: {:.3f}'.format(acc_test))
+acc_knn_with_bagging = accuracy_score(y_test, y_pred)
+print('Test set accuracy of knn with bagging: {:.3f}'.format(acc_knn_with_bagging))
 #This gives us a slightly better model than using knn by itself, but still nowhere near as good as using random forest by itself. 
 #%%
 # Instantiate rf
@@ -193,9 +193,9 @@ rf.fit(X_train, y_train)
 y_pred = rf.predict(X_test)
  
 # Evaluate acc_test
-acc_test = accuracy_score(y_test, y_pred)
-print('Test set accuracy of rf: {:.3f}'.format(acc_test)) 
-#RF gets 93.4%
+acc_rf = accuracy_score(y_test, y_pred)
+print('Test set accuracy of rf: {:.3f}'.format(acc_rf)) 
+#RF gets 93.7%
 
 #%%
 
@@ -206,7 +206,7 @@ y_pred = rf.predict(X_test)
 
 auc_rf = roc_auc_score(y_test, y_pred)
 print("Test set AUC of rf: {:.3f}".format(auc_rf))
-#up from 0.741 to 0.801
+#up from 0.741 to 0.811
 #%%
 #Let's rank feature importance now.
 # Create a pd.Series of features importances
@@ -223,7 +223,7 @@ plt.show()
 
 #DayMins and MonthlyCharge are the most important feature, plus the daily_call_length feature I added. But that might be because daily_call_length is a function of DayMins
 #%%
-#Now let's try using AdaBoost to see if we can improve RMSE
+#Now let's try using AdaBoost to see if we can improve AUC
 # Import AdaBoostClassifier
 from sklearn.ensemble import AdaBoostRegressor
  
@@ -273,6 +273,9 @@ y_pred = rf_2.predict(X_test)
 acc_test = accuracy_score(y_test, y_pred)
 print('Test set accuracy of rf with max_depth_2: {:.4f}'.format(acc_test)) 
 
+#evaluate ROC_AUC score
+auc_rf_2 = roc_auc_score(y_test, y_pred)
+print('Test set A*C of rf with max_depth_2 : {:.4f}'.format(auc_rf_2))
 # Instantiate rf
 rf_12 = RandomForestClassifier(max_depth=12, random_state=0)
              
@@ -285,8 +288,13 @@ y_pred = rf_12.predict(X_test)
 # Evaluate acc_test
 acc_test = accuracy_score(y_test, y_pred)
 print('Test set accuracy of rf with max_depth_12: {:.4f}'.format(acc_test)) 
+
+#evaluate ROC_AUC score
+auc_rf_12 = roc_auc_score(y_test, y_pred)
+print('Test set AUC of rf with max_depth_2 : {:.4f}'.format(auc_rf_12))
 #Optimal depth is at 12, gives us 93.5% accuracy
 #But, 6 gives 92.5% accuracy. So 6 is more efficient
+#seems like Ada gives the best AUC and 
 #%%
 #Final model
 
