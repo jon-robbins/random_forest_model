@@ -38,6 +38,9 @@ df['cs_calls_bill'] = df['CustServCalls'] * df['MonthlyCharge']
 #daily call length. If they have longer calls per day, they may be business customers who have different needs than regular customers.
 #df['daily_call_length'] = (df['DayMins'] / 30.417) * df['DayCalls']
 #%%
+
+#TODO scale the distributions of continuous variables (will this make a difference?)
+#%%
 #now let's visualize all of our columns and check the distributions
 sns.set_style('whitegrid')
 
@@ -55,7 +58,7 @@ X = np.array(features)
 y = np.array(df['Churn'])
 y_labels = np.array(['Not churn', 'Churn'])
 #%%
-#Create tet and train split
+#Create test and train split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1, stratify=y)
 
 # Create a model using DecisionTree classifier
@@ -182,6 +185,9 @@ y_pred = bc.predict(X_test)
 acc_knn_with_bagging = accuracy_score(y_test, y_pred)
 print('Test set accuracy of knn with bagging: {:.3f}'.format(acc_knn_with_bagging))
 #This gives us a slightly better model than using knn by itself, but still nowhere near as good as using random forest by itself. 
+auc_knn_with_bagging = roc_auc_score(y_test, y_pred)
+print("Test set AUC of knn_with_bagging: {:.3f}".format(auc_knn_with_bagging))
+
 #%%
 # Instantiate rf
 rf = RandomForestClassifier(max_depth=12, random_state=0, n_estimators=500)
@@ -195,9 +201,7 @@ y_pred = rf.predict(X_test)
 # Evaluate acc_test
 acc_rf = accuracy_score(y_test, y_pred)
 print('Test set accuracy of rf: {:.3f}'.format(acc_rf)) 
-#RF gets 93.7%
-
-#%%
+#RF gets 93.5%
 
 # Predict the test set labels
 y_pred = rf.predict(X_test)
@@ -225,9 +229,9 @@ plt.show()
 #%%
 #Now let's try using AdaBoost to see if we can improve AUC
 # Import AdaBoostClassifier
-from sklearn.ensemble import AdaBoostRegressor
+from sklearn.ensemble import AdaBoostClassifier
  
-ada_reg = AdaBoostRegressor(n_estimators=100)
+ada_reg = AdaBoostClassifier(n_estimators=100)
 
 # Fit ada to the training set
 ada_reg.fit(X_train, y_train)
@@ -236,11 +240,12 @@ ada_reg.fit(X_train, y_train)
 y_pred_ada = ada_reg.predict(X_test)
 
 #Print ROC_AUC score
-
 auc_ada = roc_auc_score(y_test, y_pred_ada)
 print("Test set AUC of ada: {:.3f}".format(auc_ada))
 
 #Ada brings it from 0.801 to 0.884, nice.
+
+
 #%%
 #Now let's try XGBoost
 import xgboost as xgb
@@ -275,7 +280,7 @@ print('Test set accuracy of rf with max_depth_2: {:.4f}'.format(acc_test))
 
 #evaluate ROC_AUC score
 auc_rf_2 = roc_auc_score(y_test, y_pred)
-print('Test set A*C of rf with max_depth_2 : {:.4f}'.format(auc_rf_2))
+print('Test set AUC of rf with max_depth_2 : {:.4f}'.format(auc_rf_2))
 # Instantiate rf
 rf_12 = RandomForestClassifier(max_depth=12, random_state=0)
              
@@ -291,10 +296,41 @@ print('Test set accuracy of rf with max_depth_12: {:.4f}'.format(acc_test))
 
 #evaluate ROC_AUC score
 auc_rf_12 = roc_auc_score(y_test, y_pred)
-print('Test set AUC of rf with max_depth_2 : {:.4f}'.format(auc_rf_12))
+print('Test set AUC of rf with max_depth_12 : {:.4f}'.format(auc_rf_12))
 #Optimal depth is at 12, gives us 93.5% accuracy
 #But, 6 gives 92.5% accuracy. So 6 is more efficient
-#seems like Ada gives the best AUC and 
+#seems like Ada gives the best AUC and rf gives the best accuracy. Can we use ada with rf?
+
+# rf_accuracy = []
+# for i in range(1,12):
+#     rf_iterated = RandomForestClassifier(max_depth=i, random_state = 0)
+#     rf_iterated.fit(X_train, y_train)
+#     y_pred = rf_iterated.predict(X_test)
+#     acc_test = accuracy_score(y_test, y_pred)
+#     auc_rf_iterated = roc_auc_score(y_test, y_pred)
+#%%
+from sklearn.model_selection import GridSearchCV
+
+param_grid = {
+    'n_estimators': range(1,100),
+    'max_features': ['log2', 'auto', 'sqrt'],
+    'min_samples_leaf': [2, 10],
+    'max_depth': [2, 12]}
+rf_cvgrid = RandomForestClassifier(random_state=0)
+grid_search = GridSearchCV(estimator = rf_cvgrid, param_grid = param_grid, cv = 5, n_jobs = -1, verbose = 1, scoring = 'roc_auc')
+
+grid_search.fit(X_train, y_train)
+
+#evaluate accuracy
+y_pred_opt = grid_search.predict(X_test)
+rf_opt_acc = accuracy_score(y_test, y_pred_opt)
+print('Test set accuraacy of rf optimized: {:.3f}'.format(rf_opt_acc))
+
+#evaluate ROC_AUC score
+auc_rf_opt = roc_auc_score(y_test, y_pred_opt)
+print('Test set AUC of rf_opt : {:.4f}'.format(auc_rf_opt))
+
+best_params = grid_search.best_params_
 #%%
 #Final model
 
