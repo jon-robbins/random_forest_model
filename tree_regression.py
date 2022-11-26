@@ -3,13 +3,15 @@ import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score, roc_curve, accuracy_score, roc_auc_score
 from sklearn.tree import plot_tree
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import KFold, cross_val_score
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import GridSearchCV, cross_val_score
 
 
 
@@ -30,16 +32,14 @@ df['out_of_plan_data_use'] = df['out_of_plan_data_use'].astype(int)
 
 df['roaming_daytime_ratio'] = df['RoamMins'] / df['DayMins']
 df['roaming_daytime_ratio'] = df['roaming_daytime_ratio'].replace(np.inf, 1, inplace=False)
-df.describe()
 
 # If the have a high monthly charge, and they have made a lot of calls, then I assume that they would have called to lower the monthly charge. Let's create an interaction term between these two
 df['cs_calls_bill'] = df['CustServCalls'] * df['MonthlyCharge']
 
 #daily call length. If they have longer calls per day, they may be business customers who have different needs than regular customers.
-#df['daily_call_length'] = (df['DayMins'] / 30.417) * df['DayCalls']
-#%%
+df['daily_call_length'] = (df['DayMins'] / (365/52)) * df['DayCalls']
 
-#TODO scale the distributions of continuous variables (will this make a difference?)
+
 #%%
 #now let's visualize all of our columns and check the distributions
 sns.set_style('whitegrid')
@@ -51,29 +51,54 @@ for i in range(len(cols)):
 
 
 #%%
-
-#Split features and target into X and y
+#Split features and target into X and y, and set CV parameters
 features = df.drop(labels='Churn', axis=1)
 X = np.array(features)
 y = np.array(df['Churn'])
 y_labels = np.array(['Not churn', 'Churn'])
+
+# set KFold parameters
+cv = KFold(n_splits=10, random_state=1, shuffle=True)
+
 #%%
+#CLF MODEL
 #Create test and train split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1, stratify=y)
 
+
 # Create a model using DecisionTree classifier
-clf_tree = DecisionTreeClassifier(max_depth=4, random_state=1)
+
+depth = []
+for i in range(3,20):
+    clf_tree = DecisionTreeClassifier(max_depth=i, random_state=1)
+    clf_tree.fit(X_train, y_train)
+    # Perform 7-fold cross validation 
+    scores = cross_val_score(estimator=clf_tree, X=X_train, y=y_train, cv=7, n_jobs=4)
+    depth.append((i,scores.mean()))
+
+#save scores
+depth = pd.DataFrame(depth, columns=['depth', 'cv_score'])
+depth['method'] = 'clf_tree'
+
+# depth 5-6 have the highest CV scores. 
+#%%
+#FINAL CLF MODEL
+clf_tree = DecisionTreeClassifier(max_depth=6, random_state=1)
 clf_tree.fit(X_train, y_train)
+
 
 # Predict test set labels
 y_pred = clf_tree.predict(X_test)
-#%%
 # Predict test set labels
 y_pred = clf_tree.predict(X_test)
  
-# Compute test set accuracy  
-acc_baseline = accuracy_score(y_test, y_pred)
-print("Test set baseline accuracy: {:.3f}".format(acc_baseline))
+# Calculate CLF accuracy score
+acc_clf = accuracy_score(y_test, y_pred)
+print('Voting Classifier: {:.3f}'.format(acc_clf))
+
+auc_clf = roc_auc_score(y_test, y_pred)
+print('Voting classifier AUC score : {:3f}'.format(auc_clf))
+#max_depth 6 has a slightly higher AUC so we'll use that
 #%%
 #Plot the tree
 plt.figure(figsize=(25,10))
@@ -90,7 +115,7 @@ plot_tree = plot_tree(clf_tree,
 
 
 #%%
-
+#KNN MODEL
 
 # Set seed for reproducibility
 SEED=2345
@@ -104,26 +129,31 @@ tree = DecisionTreeClassifier(min_samples_leaf = 0.13, random_state=SEED)
 # Define the list classifiers
 classifiers = [('K Nearest Neighbours', knn), ('Classifier Tree', tree)]
 
-
-#
-# Evaluate individual classifiers
-#
-from sklearn.metrics import accuracy_score
+# for kNN, we need to scale features
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+knn.fit(X_train_scaled, y_train)
  
 # Iterate over the pre-defined list of classifiers
 for clf_name, clf in classifiers:    
   
     # Fit clf to the training set
     clf.fit(X_train, y_train)    
-
+    tree_params = {"max_depth": range(1, 12), "max_features": range(1, 15)}
+    
+    tree_grid = GridSearchCV(tree, tree_params, cv=5, n_jobs=-1, verbose=True, error_score='raise')
+    tree_grid.fit(X_train, y_train)
     # Predict y_pred
     y_pred = clf.predict(X_test)
      
     # Calculate accuracy
     acc_clf = accuracy_score(y_test, y_pred) 
-    
+    auc_clf = roc_auc_score(y_test, y_pred)
     # Evaluate clf's accuracy on the test set
-    print('{:s} : {:.3f}'.format(clf_name, acc_clf))
+    print('{:s} : {:.3f} accuracy, {:.3f} AUC'.format(clf_name, acc_clf, auc_clf))
+
+
 #%%
 #Now let's check if we can get a higher accuracy rating with ensembling
 
@@ -142,6 +172,9 @@ y_pred = vc.predict(X_test)
 # Calculate accuracy score
 acc_voting = accuracy_score(y_test, y_pred)
 print('Voting Classifier: {:.3f}'.format(acc_voting))
+
+auc_voting = roc_auc_score(y_test, y_pred)
+print('Voting classifier AUC score : {:3f}'.format(auc_voting))
 #Nope, doesn't seem like this will give us a better result. .858, so slightly better than knn but not enough to make a difference. 
 #%%
 #Bagging
@@ -167,6 +200,10 @@ y_pred = bc.predict(X_test)
 acc_dt_with_bagging = accuracy_score(y_test, y_pred)
 print('Test set accuracy of bc: {:.3f}'.format(acc_dt_with_bagging)) 
 #Jump from 85.5% to 92.8% with bagging
+
+auc_bc = roc_auc_score(y_test, y_pred)
+print('Test set AUC of bc: {:.3f}'.format(auc_bc)) 
+
 #%%
 #pass KNN into bagging
 # Instantiate knn
@@ -282,7 +319,7 @@ print('Test set accuracy of rf with max_depth_2: {:.4f}'.format(acc_test))
 auc_rf_2 = roc_auc_score(y_test, y_pred)
 print('Test set AUC of rf with max_depth_2 : {:.4f}'.format(auc_rf_2))
 # Instantiate rf
-rf_12 = RandomForestClassifier(max_depth=12, random_state=0)
+rf_12 = RandomForestClassifier(max_depth=16, random_state=0)
              
 # Fit rf to the training set    
 rf_12.fit(X_train, y_train) 
@@ -292,22 +329,29 @@ y_pred = rf_12.predict(X_test)
  
 # Evaluate acc_test
 acc_test = accuracy_score(y_test, y_pred)
-print('Test set accuracy of rf with max_depth_12: {:.4f}'.format(acc_test)) 
+print('Test set accuracy of rf with max_depth_16: {:.4f}'.format(acc_test)) 
 
 #evaluate ROC_AUC score
 auc_rf_12 = roc_auc_score(y_test, y_pred)
-print('Test set AUC of rf with max_depth_12 : {:.4f}'.format(auc_rf_12))
+print('Test set AUC of rf with max_depth_16 : {:.4f}'.format(auc_rf_12))
 #Optimal depth is at 12, gives us 93.5% accuracy
 #But, 6 gives 92.5% accuracy. So 6 is more efficient
 #seems like Ada gives the best AUC and rf gives the best accuracy. Can we use ada with rf?
 
-# rf_accuracy = []
-# for i in range(1,12):
-#     rf_iterated = RandomForestClassifier(max_depth=i, random_state = 0)
-#     rf_iterated.fit(X_train, y_train)
-#     y_pred = rf_iterated.predict(X_test)
-#     acc_test = accuracy_score(y_test, y_pred)
-#     auc_rf_iterated = roc_auc_score(y_test, y_pred)
+rf_accuracy = []
+for i in range(1,50):
+    rf_iterated = RandomForestClassifier(max_depth=i, random_state = 0)
+    rf_iterated.fit(X_train, y_train)
+    y_pred = rf_iterated.predict(X_test)
+    acc_test = accuracy_score(y_test, y_pred)
+    auc_rf_iterated = roc_auc_score(y_test, y_pred)
+    scores = [i, acc_test, auc_rf_iterated]
+    rf_accuracy.append(scores)
+
+iterated_scores = pd.DataFrame(rf_accuracy, columns=['max_depth', 'acc_test', 'auc'])
+
+#Max depth of 10 gives us the highest accuracy rating
+
 #%%
 from sklearn.model_selection import GridSearchCV
 
@@ -331,6 +375,7 @@ auc_rf_opt = roc_auc_score(y_test, y_pred_opt)
 print('Test set AUC of rf_opt : {:.4f}'.format(auc_rf_opt))
 
 best_params = grid_search.best_params_
+
 #%%
 #Final model
 
